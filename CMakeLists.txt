@@ -10,6 +10,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+find_package(md4c REQUIRED)
+
 # --- Fetch FTXUI --------------------------------------------------------------
 include(FetchContent)
 
@@ -26,10 +28,22 @@ FetchContent_Declare(ftxui
 FetchContent_MakeAvailable(ftxui)
 # ------------------------------------------------------------------------------
 
+# Fetch MD4C source code
+FetchContent_Declare(
+    md4c
+    GIT_REPOSITORY https://github.com/mity/md4c.git
+    GIT_TAG        release-0.5.2
+)
+FetchContent_MakeAvailable(md4c)
+
 add_executable(Frosch src/main.cpp
-                         src/md4c.c)
-target_include_directories(slides-pp PRIVATE src)
-target_include_directories(slides-pp PRIVATE include)
+                      src/presentation.cpp
+                      src/utils.cpp)
+
+target_include_directories(Frosch PRIVATE src)
+target_include_directories(Frosch PRIVATE include)
+
+target_link_libraries(Frosch PRIVATE md4c::md4c)
 
 target_link_libraries(Frosch
   PRIVATE ftxui::screen

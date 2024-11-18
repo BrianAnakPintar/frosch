@@ -1,9 +1,6 @@
-#include <cstdlib>
-#include <iostream>
-#include <string>
 #include "presentation.hpp"
+#include <iostream>
 
-// pat++
 int main (int argc, char *argv[]) {
   if (argc <= 1) {
     std::cout << "Invalid arguments, usage: ./slides-pp <path>" << std::endl;

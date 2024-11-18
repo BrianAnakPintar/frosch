@@ -1,4 +1,6 @@
 #ifndef PRESENTATION_HPP
+#define PRESENTATION_HPP
+
 #include <string>
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/component_base.hpp>
