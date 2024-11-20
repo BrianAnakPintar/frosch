@@ -62,6 +62,16 @@ struct SlidesData {
   std::stack<std::vector<Element>> elem_stack;
   Presentation& presentation;
 
+  enum ListType {
+    unordered,
+    ordered,
+    none
+  };
+
+  // For lists.
+  ListType last_list_type = none;
+  int list_idx = 0;
+
   SlidesData(Presentation& p) : presentation(p) {}
 };
 
@@ -105,6 +115,51 @@ int EnterBlock(MD_BLOCKTYPE block_type, void* block_detail, void* userdata) {
   return 0;
 }
 
+Element GetBlockType(MD_BLOCKTYPE type, Elements elems, SlidesData* data) {
+  switch (type) {
+    case MD_BLOCK_H:
+      return hbox(elems);
+    case MD_BLOCK_P:
+      return hbox(elems);
+    case MD_BLOCK_DOC:
+      return vbox(elems);
+    case MD_BLOCK_LI: {
+      Elements list;
+      list.reserve(elems.size()+1);
+      if (data->last_list_type == SlidesData::ordered) {
+        list.emplace_back(text("• "));
+      } else if (data->last_list_type) {
+        list.emplace_back(text(std::to_string(data->list_idx) + ". "));
+        data->list_idx++;
+      }
+      list.insert(list.end(), elems.begin(), elems.end());
+      return hbox(list);
+    }
+    case MD_BLOCK_OL:
+      return vbox(elems);
+    case MD_BLOCK_UL:
+      return vbox(elems);
+    default:
+      return vbox(elems);
+  }
+}
+
+Component CreatePageRenderer(Element container) {
+  auto page = Renderer([container] { 
+    constexpr int HORIZONTAL_PADDING = 5;
+    constexpr int VERTICAL_PADDING = 2;
+    Element h_empty = hbox({}) | size(ftxui::WIDTH, ftxui::EQUAL, HORIZONTAL_PADDING); 
+    Element v_empty = hbox({}) | size(ftxui::HEIGHT, ftxui::EQUAL, VERTICAL_PADDING); 
+    return vbox({
+      v_empty,
+      hbox({
+        h_empty, container | flex_grow, h_empty
+      }) | flex_grow,
+      v_empty
+  }); });
+  return page;
+}
+
 void HandleLeaveBlock(MarkdownBlock& block, SlidesData* sd) {
   assert(sd->elem_stack.size() == sd->info_stack.size());
 
@@ -121,46 +176,33 @@ void HandleLeaveBlock(MarkdownBlock& block, SlidesData* sd) {
   sd->info_stack.pop();
 
   Element container;
-  switch (block.type) {
-    case MD_BLOCK_P: {
+  // Deal with new slide.
+  if (block.type == MD_BLOCK_HR) {
+    while (sd->info_stack.size() >= 1) {
+      elems = std::move(sd->elem_stack.top());
       container = hbox(elems);
-      break;
+      sd->elem_stack.top().push_back(container);
+      sd->elem_stack.pop();
+      sd->info_stack.pop();
     }
-    case MD_BLOCK_H: {
-      container = hbox(elems);
-      break;
-    }
-    case MD_BLOCK_HR: {
-      while (sd->info_stack.size() >= 1) {
-        elems = std::move(sd->elem_stack.top());
-        container = hbox(elems);
-        sd->elem_stack.top().push_back(container);
-        sd->elem_stack.pop();
-        sd->info_stack.pop();
-      }
 
-      container = vbox(elems);
-      auto page = Renderer([container] { return vbox(container); });
-      PrintComponent(page);
-      sd->presentation.AddSlide(page);
+    container = vbox(elems);
+    auto page = CreatePageRenderer(container);
+    PrintComponent(page);
+    sd->presentation.AddSlide(page);
 
-      sd->elem_stack.push({});
-      sd->info_stack.emplace(MarkdownBlock(MD_BLOCK_DOC, nullptr));
-      return;
-    }
-      break;
-    case MD_BLOCK_DOC:
-      container = vbox(elems);
-      break;
-    default:
-      break;
+    sd->elem_stack.push({});
+    sd->info_stack.emplace(MarkdownBlock(MD_BLOCK_DOC, nullptr));
+    return;
   }
+
+  container = GetBlockType(block.type, elems, sd);
 
   std::cout << "size stack: " << sd->elem_stack.size() << std::endl;
   if (sd->info_stack.size() >= 1) {
     sd->elem_stack.top().push_back(container);
   } else {
-    auto page = Renderer([container] { return vbox(container); });
+    auto page = CreatePageRenderer(container);
     PrintComponent(page);
     sd->presentation.AddSlide(page);
   }
@@ -177,9 +219,9 @@ int LeaveBlock(MD_BLOCKTYPE block_type, void* block_detail, void* userdata) {
 }
 
 // Callback for entering text.
-int EnterText(MD_TEXTTYPE type, const MD_CHAR* text, MD_SIZE size, void* userdata) {
+int EnterText(MD_TEXTTYPE type, const MD_CHAR* str, MD_SIZE size, void* userdata) {
   auto* sd = static_cast<SlidesData*>(userdata);
-  std::string text_str(text, size);
+  std::string text_str(str, size);
   if (!sd->info_stack.empty()) {
     auto& info = sd->info_stack.top();
     if (info.md_type == MarkdownInformation::Block) {
@@ -189,9 +231,13 @@ int EnterText(MD_TEXTTYPE type, const MD_CHAR* text, MD_SIZE size, void* userdat
           break;
         }
         case MD_BLOCK_H: {
-          Element bolded_elem = color(Color::Blue, ftxui::text("⣿ " + text_str) | bold);
+          Element bolded_elem = color(Color::Blue, ftxui::text("⣿⣿ " + text_str) | bold);
           sd->elem_stack.top().push_back(bolded_elem);
           break;
+        }
+        case MD_BLOCK_LI: {
+          Element list = ftxui::text(text_str);
+          sd->elem_stack.top().push_back(list);
         }
         default:
           break;
@@ -237,7 +283,11 @@ void Presentation::StartPresentation() {
   auto screen = ScreenInteractive::Fullscreen();
 
   // Define the container that holds the slides
-  auto container = Container::Tab(m_slides, &m_current_slide);
+  auto container = Container::Tab(m_slides, &m_current_slide); 
+
+  // Left padding.
+  constexpr int HORIZONTAL_PADDING = 10;
+  Element v_empty = hbox({}) | size(ftxui::HEIGHT, ftxui::EQUAL, HORIZONTAL_PADDING); 
 
   auto controls = CatchEvent(container, [&](Event event) {
     if (event == Event::ArrowRight && m_current_slide < m_slides.size() - 1) {
