@@ -2,6 +2,7 @@
 #include <ftxui/component/component_base.hpp>
 #include <ftxui/screen/color.hpp>
 #include "ftxui/component/screen_interactive.hpp"
+#include <ftxui/screen/terminal.hpp>
 #include <md4c.h>
 #include "ftxui/dom/elements.hpp"
 #include "utils.hpp"
@@ -118,9 +119,9 @@ int EnterBlock(MD_BLOCKTYPE block_type, void* block_detail, void* userdata) {
 Element GetBlockType(MD_BLOCKTYPE type, Elements elems, SlidesData* data) {
   switch (type) {
     case MD_BLOCK_H:
-      return hbox(elems);
+      return flexbox(elems);
     case MD_BLOCK_P:
-      return hbox(elems);
+      return flexbox(elems);
     case MD_BLOCK_DOC:
       return vbox(elems);
     case MD_BLOCK_LI: {
@@ -133,7 +134,7 @@ Element GetBlockType(MD_BLOCKTYPE type, Elements elems, SlidesData* data) {
         data->list_idx++;
       }
       list.insert(list.end(), elems.begin(), elems.end());
-      return hbox(list);
+      return flexbox(list);
     }
     case MD_BLOCK_OL:
       return vbox(elems);
@@ -144,8 +145,24 @@ Element GetBlockType(MD_BLOCKTYPE type, Elements elems, SlidesData* data) {
   }
 }
 
+Element GetSpanType(MD_SPANTYPE type, Elements elem, SlidesData* data) {
+  switch (type) {
+    case MD_SPAN_STRONG:
+      return hbox(elem) | bold;
+    case MD_SPAN_CODE: {
+      Elements new_elem = {text(" ")};
+      new_elem.reserve(elem.size()+2);
+      new_elem.insert(new_elem.end(), elem.begin(), elem.end());
+      new_elem.push_back({text(" ")});
+      return color(Color::RedLight, hbox(new_elem) | bgcolor(Color::Black));
+    }
+    default:
+      return flexbox(elem);
+  }
+}
+
 Component CreatePageRenderer(Element container) {
-  auto page = Renderer([container] { 
+  auto page = Renderer([container] {
     constexpr int HORIZONTAL_PADDING = 5;
     constexpr int VERTICAL_PADDING = 2;
     Element h_empty = hbox({}) | size(ftxui::WIDTH, ftxui::EQUAL, HORIZONTAL_PADDING); 
@@ -209,6 +226,36 @@ void HandleLeaveBlock(MarkdownBlock& block, SlidesData* sd) {
 
 }
 
+void HandleLeaveSpan(MarkdownSpan& span, SlidesData* sd) {
+  assert(sd->elem_stack.size() == sd->info_stack.size());
+
+  if (sd->info_stack.empty() && sd->elem_stack.empty())
+    return;
+
+  MD_SPANTYPE top_type = sd->info_stack.top().span.type;
+  // We have already handled this case with <hr>
+  if (top_type != span.type)
+    return;
+
+  Elements elems = std::move(sd->elem_stack.top());
+  sd->elem_stack.pop();
+  sd->info_stack.pop();
+
+  Element container; 
+
+  container = GetSpanType(span.type, elems, sd);
+
+  std::cout << "size stack: " << sd->elem_stack.size() << std::endl;
+  if (sd->info_stack.size() >= 1) {
+    sd->elem_stack.top().push_back(container);
+  } else {
+    auto page = CreatePageRenderer(container);
+    PrintComponent(page);
+    sd->presentation.AddSlide(page);
+  }
+
+}
+
 int LeaveBlock(MD_BLOCKTYPE block_type, void* block_detail, void* userdata) {
   auto* sd = static_cast<SlidesData*>(userdata);
 
@@ -231,7 +278,7 @@ int EnterText(MD_TEXTTYPE type, const MD_CHAR* str, MD_SIZE size, void* userdata
           break;
         }
         case MD_BLOCK_H: {
-          Element bolded_elem = color(Color::Blue, ftxui::text("⣿⣿ " + text_str) | bold);
+          Element bolded_elem = color(Color::Cyan, ftxui::text("██ " + text_str) | bold);
           sd->elem_stack.top().push_back(bolded_elem);
           break;
         }
@@ -242,8 +289,37 @@ int EnterText(MD_TEXTTYPE type, const MD_CHAR* str, MD_SIZE size, void* userdata
         default:
           break;
       }
+    } else if (info.md_type == MarkdownInformation::Span) {
+      switch (info.span.type) {
+        case MD_SPAN_STRONG: {
+          sd->elem_stack.top().push_back(ftxui::text(text_str) | bold);
+          break;
+        }
+        case MD_SPAN_CODE: {
+          sd->elem_stack.top().push_back(ftxui::text(text_str));
+          break;
+        }
+        default:
+          break;
+      }
     }
   }
+  return 0;
+}
+
+int EnterSpan(MD_SPANTYPE span_type, void* span_detail, void* userdata) {
+  auto* sd = static_cast<SlidesData*>(userdata);
+  std::cout << "Entering span\n";
+  sd->info_stack.emplace(MarkdownSpan(span_type, span_detail));
+  sd->elem_stack.emplace(); // Push an empty vector for elements.
+  return 0;
+}
+
+int LeaveSpan(MD_SPANTYPE span_type, void* span_detail, void* userdata) {
+  auto* sd = static_cast<SlidesData*>(userdata);
+  std::cout << "Leaving span\n";
+  assert(!sd->info_stack.empty());
+  HandleLeaveSpan(sd->info_stack.top().span, sd);
   return 0;
 }
 
@@ -256,8 +332,8 @@ Presentation::Presentation(const std::string& file_path) {
       0,              // flags
       EnterBlock,     // Callback for entering a block.
       LeaveBlock,     // Callback for leaving a block.
-      nullptr,        // EnterSpan placeholder.
-      nullptr,        // LeaveSpan placeholder.
+      EnterSpan,        // EnterSpan placeholder.
+      LeaveSpan,        // LeaveSpan placeholder.
       EnterText,      // Callback for reading text.
   };
 
