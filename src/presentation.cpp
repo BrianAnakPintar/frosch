@@ -106,7 +106,15 @@ int EnterBlock(MD_BLOCKTYPE block_type, void* block_detail, void* userdata) {
 }
 
 void HandleLeaveBlock(MarkdownBlock& block, SlidesData* sd) {
-  assert(!sd->elem_stack.empty() && !sd->info_stack.empty());
+  assert(sd->elem_stack.size() == sd->info_stack.size());
+
+  if (sd->info_stack.empty() && sd->elem_stack.empty())
+    return;
+
+  MD_BLOCKTYPE top_type = sd->info_stack.top().block.type;
+  // We have already handled this case with <hr>
+  if (top_type != block.type)
+    return;
 
   Elements elems = std::move(sd->elem_stack.top());
   sd->elem_stack.pop();
@@ -114,13 +122,32 @@ void HandleLeaveBlock(MarkdownBlock& block, SlidesData* sd) {
 
   Element container;
   switch (block.type) {
-    case MD_BLOCK_P:
+    case MD_BLOCK_P: {
       container = hbox(elems);
       break;
-    case MD_BLOCK_H:
+    }
+    case MD_BLOCK_H: {
       container = hbox(elems);
       break;
-    case MD_BLOCK_HR:
+    }
+    case MD_BLOCK_HR: {
+      while (sd->info_stack.size() >= 1) {
+        elems = std::move(sd->elem_stack.top());
+        container = hbox(elems);
+        sd->elem_stack.top().push_back(container);
+        sd->elem_stack.pop();
+        sd->info_stack.pop();
+      }
+
+      container = vbox(elems);
+      auto page = Renderer([container] { return vbox(container); });
+      PrintComponent(page);
+      sd->presentation.AddSlide(page);
+
+      sd->elem_stack.push({});
+      sd->info_stack.emplace(MarkdownBlock(MD_BLOCK_DOC, nullptr));
+      return;
+    }
       break;
     case MD_BLOCK_DOC:
       container = vbox(elems);
