@@ -1,4 +1,5 @@
 #include "presentation.hpp"
+#include <ftxui/component/component.hpp>
 #include <ftxui/component/component_base.hpp>
 #include <ftxui/screen/color.hpp>
 #include "ftxui/component/screen_interactive.hpp"
@@ -71,46 +72,15 @@ struct SlidesData {
 
   // For lists.
   ListType last_list_type = none;
-  int list_idx = 0;
+  int list_idx = 1;
 
   SlidesData(Presentation& p) : presentation(p) {}
 };
 
-void PrintComponent(const Component& component) {
-  auto element = component->Render();
-  auto screen = Screen::Create(Dimension::Full(), Dimension::Fit(element));
-  Render(screen, element);
-  std::cout << screen.ToString() << std::endl;
-}
-
-std::string blockTypeToString(MD_BLOCKTYPE blockType) {
-    static const std::map<MD_BLOCKTYPE, std::string> blockTypeToStringMap = {
-        {MD_BLOCK_DOC, "MD_BLOCK_DOC"},
-        {MD_BLOCK_QUOTE, "MD_BLOCK_QUOTE"},
-        {MD_BLOCK_UL, "MD_BLOCK_UL"},
-        {MD_BLOCK_OL, "MD_BLOCK_OL"},
-        {MD_BLOCK_LI, "MD_BLOCK_LI"},
-        {MD_BLOCK_HR, "MD_BLOCK_HR"},
-        {MD_BLOCK_H, "MD_BLOCK_H"},
-        {MD_BLOCK_CODE, "MD_BLOCK_CODE"},
-        {MD_BLOCK_HTML, "MD_BLOCK_HTML"},
-        {MD_BLOCK_P, "MD_BLOCK_P"},
-        {MD_BLOCK_TABLE, "MD_BLOCK_TABLE"},
-        {MD_BLOCK_THEAD, "MD_BLOCK_THEAD"},
-        {MD_BLOCK_TBODY, "MD_BLOCK_TBODY"},
-        {MD_BLOCK_TR, "MD_BLOCK_TR"},
-        {MD_BLOCK_TH, "MD_BLOCK_TH"},
-        {MD_BLOCK_TD, "MD_BLOCK_TD"}
-    };
-
-    auto it = blockTypeToStringMap.find(blockType);
-    return it != blockTypeToStringMap.end() ? it->second : "Unknown Block Type";
-}
-
 // Callback for entering block.
 int EnterBlock(MD_BLOCKTYPE block_type, void* block_detail, void* userdata) {
   auto* sd = static_cast<SlidesData*>(userdata);
-  std::cout << "Entering: " << blockTypeToString(block_type) << '\n';
+  DEBUG_PRINT_BLOCK("Entering", block_type);
   sd->info_stack.emplace(MarkdownBlock(block_type, block_detail));
   sd->elem_stack.emplace(); // Push an empty vector for elements.
   return 0;
@@ -119,9 +89,9 @@ int EnterBlock(MD_BLOCKTYPE block_type, void* block_detail, void* userdata) {
 Element GetBlockType(MD_BLOCKTYPE type, Elements elems, SlidesData* data) {
   switch (type) {
     case MD_BLOCK_H:
-      return flexbox(elems);
+      return vbox(flexbox(elems), text(""));
     case MD_BLOCK_P:
-      return flexbox(elems);
+      return vbox(flexbox(elems), text(""));
     case MD_BLOCK_DOC:
       return vbox(elems);
     case MD_BLOCK_LI: {
@@ -197,7 +167,7 @@ void HandleLeaveBlock(MarkdownBlock& block, SlidesData* sd) {
   if (block.type == MD_BLOCK_HR) {
     while (sd->info_stack.size() >= 1) {
       elems = std::move(sd->elem_stack.top());
-      container = hbox(elems);
+      container = flexbox(elems);
       sd->elem_stack.top().push_back(container);
       sd->elem_stack.pop();
       sd->info_stack.pop();
@@ -205,7 +175,7 @@ void HandleLeaveBlock(MarkdownBlock& block, SlidesData* sd) {
 
     container = vbox(elems);
     auto page = CreatePageRenderer(container);
-    PrintComponent(page);
+    DEBUG_PRINT_SLIDE(page);
     sd->presentation.AddSlide(page);
 
     sd->elem_stack.push({});
@@ -215,12 +185,11 @@ void HandleLeaveBlock(MarkdownBlock& block, SlidesData* sd) {
 
   container = GetBlockType(block.type, elems, sd);
 
-  std::cout << "size stack: " << sd->elem_stack.size() << std::endl;
   if (sd->info_stack.size() >= 1) {
     sd->elem_stack.top().push_back(container);
   } else {
     auto page = CreatePageRenderer(container);
-    PrintComponent(page);
+    DEBUG_PRINT_SLIDE(page);
     sd->presentation.AddSlide(page);
   }
 
@@ -245,12 +214,11 @@ void HandleLeaveSpan(MarkdownSpan& span, SlidesData* sd) {
 
   container = GetSpanType(span.type, elems, sd);
 
-  std::cout << "size stack: " << sd->elem_stack.size() << std::endl;
   if (sd->info_stack.size() >= 1) {
     sd->elem_stack.top().push_back(container);
   } else {
     auto page = CreatePageRenderer(container);
-    PrintComponent(page);
+    DEBUG_PRINT_SLIDE(page);
     sd->presentation.AddSlide(page);
   }
 
@@ -259,7 +227,9 @@ void HandleLeaveSpan(MarkdownSpan& span, SlidesData* sd) {
 int LeaveBlock(MD_BLOCKTYPE block_type, void* block_detail, void* userdata) {
   auto* sd = static_cast<SlidesData*>(userdata);
 
-  std::cout << "Leaving: " << blockTypeToString(block_type) << '\n';
+  DEBUG_PRINT_BLOCK("Leaving", block_type);
+  if (block_type == MD_BLOCK_OL)
+    sd->list_idx = 1;
   assert(!sd->info_stack.empty());
   HandleLeaveBlock(sd->info_stack.top().block, sd);
   return 0;
@@ -278,7 +248,18 @@ int EnterText(MD_TEXTTYPE type, const MD_CHAR* str, MD_SIZE size, void* userdata
           break;
         }
         case MD_BLOCK_H: {
-          Element bolded_elem = color(Color::Cyan, ftxui::text("██ " + text_str) | bold);
+          MD_BLOCK_H_DETAIL* header_detail = (MD_BLOCK_H_DETAIL*) info.block.detail;
+          Element bolded_elem;
+          switch (header_detail->level) {
+            case 1: 
+            bolded_elem = color(Color::Cyan, ftxui::text("██ " + text_str) | bold);
+            break;
+            case 2:
+            bolded_elem = color(Color::Blue, ftxui::text("████ " + text_str) | bold);
+            break;
+            default:
+            bolded_elem = color(Color::Cyan, ftxui::text("██ " + text_str) | bold);
+          }
           sd->elem_stack.top().push_back(bolded_elem);
           break;
         }
@@ -309,7 +290,7 @@ int EnterText(MD_TEXTTYPE type, const MD_CHAR* str, MD_SIZE size, void* userdata
 
 int EnterSpan(MD_SPANTYPE span_type, void* span_detail, void* userdata) {
   auto* sd = static_cast<SlidesData*>(userdata);
-  std::cout << "Entering span\n";
+  DEBUG_PRINT_SPAN("Entering", span_type);
   sd->info_stack.emplace(MarkdownSpan(span_type, span_detail));
   sd->elem_stack.emplace(); // Push an empty vector for elements.
   return 0;
@@ -317,7 +298,7 @@ int EnterSpan(MD_SPANTYPE span_type, void* span_detail, void* userdata) {
 
 int LeaveSpan(MD_SPANTYPE span_type, void* span_detail, void* userdata) {
   auto* sd = static_cast<SlidesData*>(userdata);
-  std::cout << "Leaving span\n";
+  DEBUG_PRINT_SPAN("Leaving", span_type);
   assert(!sd->info_stack.empty());
   HandleLeaveSpan(sd->info_stack.top().span, sd);
   return 0;
@@ -344,9 +325,6 @@ Presentation::Presentation(const std::string& file_path) {
     return;
   }
 
-  std::cout << sd->elem_stack.size() << '\n';
-  std::cout << "Slides count: " << m_slides.size() << std::endl;
-
   StartPresentation();
 }
 
@@ -359,25 +337,46 @@ void Presentation::StartPresentation() {
   auto screen = ScreenInteractive::Fullscreen();
 
   // Define the container that holds the slides
-  auto container = Container::Tab(m_slides, &m_current_slide); 
+  auto slide = Container::Tab(m_slides, &m_current_slide); 
+  
+  // Progress bar at botoom.
+  std::string msg = "Ribbit.";
+  auto status_bar = Renderer([&] {
+        return hbox(text("Slide: " + std::to_string(m_current_slide+1) + "/" + std::to_string(m_slides.size())) | bold,
+                    text(" " + msg + " "));
+  });
 
-  // Left padding.
-  constexpr int HORIZONTAL_PADDING = 10;
-  Element v_empty = hbox({}) | size(ftxui::HEIGHT, ftxui::EQUAL, HORIZONTAL_PADDING); 
+  Element h_empty = hbox({}) | size(ftxui::WIDTH, ftxui::EQUAL, 5); 
 
-  auto controls = CatchEvent(container, [&](Event event) {
-    if (event == Event::ArrowRight && m_current_slide < m_slides.size() - 1) {
+  auto container = Container::Vertical({
+    slide,
+    status_bar
+  });
+
+  auto app = Renderer(container, [&] {
+    return vbox({
+      slide->Render() | flex_grow,
+      hbox({
+        h_empty, status_bar->Render() | flex_grow | bgcolor(Color::Black), h_empty
+      }) | size(HEIGHT, EQUAL, 1),
+      hbox() | size(HEIGHT, EQUAL, 2)
+    }) | border;
+  });
+
+  auto controls = CatchEvent(app, [&](Event event) {
+    if ((event == Event::ArrowRight || event == Event::Character('l')) && m_current_slide < m_slides.size() - 1) {
       m_current_slide++;
       return true;
-    }
-    if (event == Event::ArrowLeft && m_current_slide > 0) {
+    } else if ((event == Event::ArrowLeft || event == Event::Character('h')) && m_current_slide > 0) {
       m_current_slide--;
+      return true;
+    } else if (event == Event::Character('q')) {
+      screen.Exit();
       return true;
     }
     return false;
   });
 
-  std::cout << "Slides count: " << m_slides.size() << std::endl;
   screen.Loop(controls);
 }
 

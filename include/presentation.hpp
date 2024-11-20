@@ -5,7 +5,6 @@
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/component_base.hpp>
 
-
 // This class contains the UI elements that will be generated.
 class Presentation {
 
