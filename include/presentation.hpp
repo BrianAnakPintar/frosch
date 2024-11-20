@@ -27,6 +27,8 @@ public:
   */
   bool SavePresentation(const std::string& output_path);
 
+  void AddSlide(const ftxui::Component& slide);
+
 private:
   // Slides contains all the slides for the presentation.
   std::vector<ftxui::Component> m_slides;
