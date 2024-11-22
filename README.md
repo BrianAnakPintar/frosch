@@ -21,8 +21,7 @@ Usage:
 Run `./frosch <path>`
 
 ### Why the name frosch?
-I google translated the word frog into german. Yes like [Frieren names](https://en.wikipedia.org/wiki/List_of_Frieren_characters#:~:text=The%20character%20names%20are%20all%20German%20words)
-
+I google translated the word frog into german. Yes like [Frieren names](https://en.wikipedia.org/wiki/List_of_Frieren_characters#:~:text=The%20character%20names%20are%20all%20German%20words).
 Why frogs? Honestly I have no clue, it sounds cool though. "Hopping through slides"
 
 This project was inspired by:
