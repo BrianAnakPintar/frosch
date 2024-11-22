@@ -1,6 +1,8 @@
 # Frosch
-
-Markdown presentations in the terminal.
+Markdown Presentations in the Terminal
+<p align="center">
+  <img src="./docs/frosch_init_logo.png?raw=true" alt="Logo" width=250 />
+</p>
 
 The idea of this project is to make easy presentations using just markdown.
 So basically you as the user can just focus on writing the content of the presentation,
