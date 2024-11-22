@@ -14,7 +14,6 @@
 #include <memory>
 #include <cassert>
 #include <string>
-#include <map>
 
 using namespace ftxui;
 
@@ -313,8 +312,8 @@ Presentation::Presentation(const std::string& file_path) {
       0,              // flags
       EnterBlock,     // Callback for entering a block.
       LeaveBlock,     // Callback for leaving a block.
-      EnterSpan,        // EnterSpan placeholder.
-      LeaveSpan,        // LeaveSpan placeholder.
+      EnterSpan,      // EnterSpan placeholder.
+      LeaveSpan,      // LeaveSpan placeholder.
       EnterText,      // Callback for reading text.
   };
 
@@ -360,7 +359,7 @@ void Presentation::StartPresentation() {
         h_empty, status_bar->Render() | flex_grow | bgcolor(Color::Black), h_empty
       }) | size(HEIGHT, EQUAL, 1),
       hbox() | size(HEIGHT, EQUAL, 2)
-    }) | border;
+    });
   });
 
   auto controls = CatchEvent(app, [&](Event event) {

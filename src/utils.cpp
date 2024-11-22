@@ -43,11 +43,11 @@ std::string blockTypeToString(MD_BLOCKTYPE blockType) {
 
 std::string spanTypeToString(MD_SPANTYPE spanType) {
   static const std::map<MD_SPANTYPE, std::string> spanTypeToStringMap = {
-    {MD_SPAN_CODE, "MD_BLOCK_DOC"},
-    {MD_SPAN_STRONG, "MD_BLOCK_QUOTE"},
-    {MD_SPAN_A, "MD_BLOCK_UL"},
-    {MD_SPAN_U, "MD_BLOCK_OL"},
-    {MD_SPAN_EM, "MD_BLOCK_LI"},
+    {MD_SPAN_CODE, "MD_SPAN_CODE"},
+    {MD_SPAN_STRONG, "MD_SPAN_STRONG"},
+    {MD_SPAN_A, "MD_SPAN_A"},
+    {MD_SPAN_U, "MD_SPAN_U"},
+    {MD_SPAN_EM, "MD_SPAN_EM"},
     {MD_SPAN_IMG, "MD_SPAN_IMG"},
     {MD_SPAN_DEL, "MD_SPAN_DEL"},
     {MD_SPAN_LATEXMATH, "MD_SPAN_LATEXMATH"},

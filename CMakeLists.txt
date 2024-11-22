@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.22)
+cmake_minimum_required(VERSION 3.22)
 
 project(Frosch
   LANGUAGES CXX
@@ -36,6 +36,10 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(md4c)
 
+# --- Add ftxui-image-view -----------------------------------------------------
+add_subdirectory(external/ftxui-image-view)
+
+# --- Main executable ----------------------------------------------------------
 add_executable(Frosch src/main.cpp
                       src/presentation.cpp
                       src/utils.cpp)
@@ -49,4 +53,5 @@ target_link_libraries(Frosch
   PRIVATE ftxui::screen
   PRIVATE ftxui::dom
   PRIVATE ftxui::component
+  PRIVATE ftxui-image-view
 )
