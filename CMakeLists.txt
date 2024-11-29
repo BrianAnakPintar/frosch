@@ -42,7 +42,8 @@ add_subdirectory(external/ftxui-image-view)
 # --- Main executable ----------------------------------------------------------
 add_executable(Frosch src/main.cpp
                       src/presentation.cpp
-                      src/utils.cpp)
+                      src/utils.cpp
+                      src/dashboard.cpp)
 
 target_include_directories(Frosch PRIVATE src)
 target_include_directories(Frosch PRIVATE include)

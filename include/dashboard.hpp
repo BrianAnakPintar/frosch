@@ -8,6 +8,7 @@ public:
   Dashboard();
 private:
   const std::string path;
+  void Run();
 };
 
 #endif // !DASHBOARD_H

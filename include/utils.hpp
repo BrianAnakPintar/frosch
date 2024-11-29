@@ -1,9 +1,11 @@
 #ifndef UTILS_HPP
 #define UTILS_HPP
 
+#include <ftxui/component/component_options.hpp>
 #include <string>
 #include <md4c.h>
 #include <ftxui/component/component_base.hpp>
+#include <ftxui/dom/elements.hpp>
 
 // Toggle Define and Undefine Debug by uncommenting.
 /*#define DEBUG*/
