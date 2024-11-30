@@ -45,6 +45,8 @@ void Dashboard::Run() {
     }) | center;
   });
 
+  
+
   // === START
   // Color Options
   std::vector<std::string> colors = {"Red", "Green", "Blue", "Yellow", "Cyan", "Magenta"};

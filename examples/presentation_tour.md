@@ -26,6 +26,8 @@ Todos:
 2. Frog.
 5. 42
 
+![Frieren](./img_frieren.jpg)
+
 ---
 
 #### To be implemented.

@@ -2,8 +2,19 @@
 #define PRESENTATION_HPP
 
 #include <string>
+#include <md4c.h>
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/component_base.hpp>
+#include <ftxui/screen/color.hpp>
+#include "ftxui/component/screen_interactive.hpp"
+#include <ftxui/screen/terminal.hpp>
+#include "ftxui/dom/elements.hpp"
+#include <stack>
+#include <string>
+#include <vector>
+#include <cassert>
+#include <string>
+
 
 // This class contains the UI elements that will be generated.
 class Presentation {
@@ -26,7 +37,15 @@ public:
   */
   bool SavePresentation(const std::string& output_path);
 
+  /*
+  *
+  * Adds a slide.
+  *
+  */
   void AddSlide(const ftxui::Component& slide);
+  
+  // Stores the current directory
+  std::string presentation_path;
 
 private:
   // Slides contains all the slides for the presentation.

@@ -1,4 +1,5 @@
 #include "presentation.hpp"
+#include <filesystem>
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/component_base.hpp>
 #include <ftxui/screen/color.hpp>
@@ -14,6 +15,7 @@
 #include <memory>
 #include <cassert>
 #include <string>
+#include "image_view.hpp"
 
 using namespace ftxui;
 
@@ -85,6 +87,12 @@ int EnterBlock(MD_BLOCKTYPE block_type, void* block_detail, void* userdata) {
   return 0;
 }
 
+/*
+*
+* Takes in a MD_BLOCKTYPE and a list of elements and outputs an element
+* which renders the appropriate representation for the given MD_BLOCKTYPE
+*
+*/
 Element GetBlockType(MD_BLOCKTYPE type, Elements elems, SlidesData* data) {
   switch (type) {
     case MD_BLOCK_H:
@@ -114,7 +122,13 @@ Element GetBlockType(MD_BLOCKTYPE type, Elements elems, SlidesData* data) {
   }
 }
 
-Element GetSpanType(MD_SPANTYPE type, Elements elem, SlidesData* data) {
+/*
+*
+* Takes in a MD_SPANTYPE and a list of elements which then renders the appropriate
+* visual for the given MD_SPANTYPE.
+*
+*/
+Element GetSpanType(MD_SPANTYPE type, void* detail, Elements elem, SlidesData* data) {
   switch (type) {
     case MD_SPAN_STRONG:
       return hbox(elem) | bold;
@@ -124,6 +138,20 @@ Element GetSpanType(MD_SPANTYPE type, Elements elem, SlidesData* data) {
       new_elem.insert(new_elem.end(), elem.begin(), elem.end());
       new_elem.push_back({text(" ")});
       return color(Color::RedLight, hbox(new_elem) | bgcolor(Color::Black));
+    }
+    case MD_SPAN_IMG: {
+      MD_SPAN_IMG_DETAIL* img_detail = (MD_SPAN_IMG_DETAIL*) detail;
+      MD_ATTRIBUTE img_src = img_detail->src;
+
+      std::string base_path = data->presentation.presentation_path;
+      std::string img_path(img_src.text, img_src.size);
+
+      std::filesystem::path full_path = std::filesystem::path(base_path).parent_path() / img_path;
+
+      std::cout << full_path << '\n';
+      return image_view(full_path.string()) | size(ftxui::WIDTH, ftxui::LESS_THAN, 30) 
+                                  | size(ftxui::HEIGHT, ftxui::LESS_THAN, 15)
+                                  | center;
     }
     default:
       return flexbox(elem);
@@ -211,7 +239,7 @@ void HandleLeaveSpan(MarkdownSpan& span, SlidesData* sd) {
 
   Element container; 
 
-  container = GetSpanType(span.type, elems, sd);
+  container = GetSpanType(span.type, span.detail, elems, sd);
 
   if (sd->info_stack.size() >= 1) {
     sd->elem_stack.top().push_back(container);
@@ -304,7 +332,7 @@ int LeaveSpan(MD_SPANTYPE span_type, void* span_detail, void* userdata) {
 }
 
 // Presentation class.
-Presentation::Presentation(const std::string& file_path) {
+Presentation::Presentation(const std::string& file_path) : presentation_path(file_path) {
   std::string md_str = load_file(file_path);
 
   MD_PARSER parser = {
