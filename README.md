@@ -29,7 +29,7 @@ Why frogs? Honestly I have no clue, it sounds cool though. "Hopping through slid
 ### Features
 - Supports various markdown syntax.
 - Keyboard shortcuts.
-- Image support `(In progress)`
+- Image support.
 - Dashboard `(In progress)`
 - Dotfiles `(In progress)`
 
